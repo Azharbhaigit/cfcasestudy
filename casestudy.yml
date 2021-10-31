@@ -1,0 +1,113 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Resources:
+  cfvpc:
+    Type: AWS::EC2::VPC
+    Properties: 
+      CidrBlock: 10.20.0.0/16
+      EnableDnsHostnames: 'true'
+      EnableDnsSupport: 'true'
+      InstanceTenancy: default
+      Tags: 
+        - Key: Name
+          Value: cfvpc
+  web:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: us-west-2a
+      CidrBlock: 10.20.1.0/24
+      MapPublicIpOnLaunch: 'true'
+      Tags: 
+        - Key: Name
+          Value: websubnet
+      VpcId: !Ref cfvpc
+  app:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: us-west-2b
+      CidrBlock: 10.20.2.0/24
+      MapPublicIpOnLaunch: 'true'
+      Tags: 
+        - Key: Name
+          Value: appsubnet
+      VpcId: !Ref cfvpc
+  db:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: us-west-2c
+      CidrBlock: 10.20.3.0/24
+      MapPublicIpOnLaunch: 'true'
+      Tags: 
+        - Key: Name
+          Value: dbsubnet
+      VpcId: !Ref cfvpc
+  igw:
+    Type: AWS::EC2::InternetGateway
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: cfvpc-IGW
+  igwattach:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: 
+      InternetGatewayId: !Ref igw
+      VpcId: !Ref cfvpc
+  eipp:
+    Type: AWS::EC2::EIP
+    Properties: 
+      Domain: vpc
+      Tags: 
+        - Key: Name
+          Value: cfvpc-eip
+  nat:
+    Type: AWS::EC2::NatGateway
+    Properties: 
+      AllocationId: 
+         Fn::GetAtt:
+         - eipp
+         - AllocationId
+      ConnectivityType: public
+      SubnetId: !Ref web
+      Tags: 
+        - Key: Name
+          Value: cfvpc-NAT
+  pubRT:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: cfvpc-publicRt
+      VpcId: !Ref cfvpc
+  prvRT:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: cfvpc-privateRt
+      VpcId: !Ref cfvpc
+  pubroute:
+    Type: AWS::EC2::Route
+    Properties: 
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref igw
+      RouteTableId: !Ref pubRT
+  prvroute:
+    Type: AWS::EC2::Route
+    Properties: 
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref nat
+      RouteTableId: !Ref prvRT
+  pubsubassoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref pubRT
+      SubnetId: !Ref web
+  prvsubassoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref prvRT
+      SubnetId: !Ref app
+
+
+
+
+            
